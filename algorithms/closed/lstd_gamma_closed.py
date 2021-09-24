@@ -1,15 +1,19 @@
 import numpy as np
 import torch
 
+from typing import Callable
 from herl.rl_interface import RLTask, RLAgent, Critic, PolicyGradient
-from herl.classic_envs import MDP
+from herl.classic_envs import MDP, MDPFeatureInterface
 from herl.rl_analysis import MDPAnalyzer
 from herl.utils import _one_hot
 
 
 class ClosedLSTDGamma(PolicyGradient, Critic):
 
-    def __init__(self, task: RLTask, policy: RLAgent, mu: np.ndarray, beta: np.ndarray):
+    def __init__(self, task: RLTask, policy: RLAgent,
+                 critic_features: Callable,
+                 actor_features: MDPFeatureInterface,
+                 mu: np.ndarray, beta: np.ndarray):
         """LSTDGamma as described in Algorithm 1; but with closed form computation of expectations.
         Works only with Finite MDPs.
 
@@ -23,6 +27,9 @@ class ClosedLSTDGamma(PolicyGradient, Critic):
         self._mdp = self._task.environment  # type: MDP
         self._policy = policy
 
+        self._actor_features = actor_features
+        self._critic_features = critic_features
+
         self._mdp_analyzer = MDPAnalyzer(task, policy)
         self._n_states = len(self._mdp.get_states())
         self._n_actions = len(self._mdp.get_actions())
@@ -30,17 +37,6 @@ class ClosedLSTDGamma(PolicyGradient, Critic):
 
         self.mu = mu
         self.beta = beta
-
-    def get_torch_features(self, s, a):
-        """
-        Get torch features of state and action
-        :param s:
-        :param a:
-        :return:
-        """
-        s_a_t = _one_hot(s*self._n_actions + a, self._n_states*self._n_actions)
-        s_a_t = torch.tensor(s_a_t)
-        return s_a_t
 
     def get_omega_q(self, mu, beta):
 
@@ -58,7 +54,7 @@ class ClosedLSTDGamma(PolicyGradient, Critic):
                 p_s_a = mu[s] * beta[s, a]
 
                 # Compute \phi
-                phi = self.get_torch_features(s, a)
+                phi = self._critic_features(torch.tensor(s), torch.tensor(a))
 
                 # Compute \phi'
                 phi_next = 0.
@@ -66,11 +62,13 @@ class ClosedLSTDGamma(PolicyGradient, Critic):
                     for a_n in self._mdp.get_actions():
                         p_s_n = P[a, s, s_n]
                         # Use coding from the MDP
-                        s_n_t = torch.tensor(self._mdp._features.codify_state(s_n))
-                        a_n_t = torch.tensor(self._mdp._features.codify_action(a_n))
-                        p_a_n = self._policy.get_prob(s_n_t, a_n_t, differentiable=True).squeeze()
+                        s_n_t, a_n_t = torch.tensor(s_n), torch.tensor(a_n)
+                        p_a_n = self._policy.get_prob(
+                            self._actor_features.codify_state(s_n_t),
+                            self._actor_features.codify_action(a_n_t),
+                                                      differentiable=True).squeeze()
 
-                        phi_next += p_s_n * p_a_n * self.get_torch_features(s_n, a_n)
+                        phi_next += p_s_n * p_a_n * self._critic_features(s_n_t, a_n_t)
 
                 A += p_s_a * torch.outer(phi, phi - gamma * phi_next)
 
@@ -80,7 +78,7 @@ class ClosedLSTDGamma(PolicyGradient, Critic):
             for a in self._mdp.get_actions():
                 p_s_a = mu[s] * beta[s, a]
                 rew = r[a, s]
-                phi = self.get_torch_features(s, a)
+                phi = self._critic_features(torch.tensor(s), torch.tensor(a))
 
                 b += p_s_a * rew * phi
 
@@ -101,7 +99,7 @@ class ClosedLSTDGamma(PolicyGradient, Critic):
         # build a matrix of the Q-values
         return torch.stack([
             torch.stack([
-                    torch.inner(self.get_torch_features(s, a), omega)
+                    torch.inner(self._critic_features(torch.tensor(s), torch.tensor(a)), omega)
                 for a in self._mdp.get_actions()
             ])
             for s in self._mdp.get_states()
@@ -119,8 +117,8 @@ class ClosedLSTDGamma(PolicyGradient, Critic):
         # Build policy matrix (optimization policy)
         pi = torch.stack([
                 torch.stack([self._policy.get_prob(
-                        torch.tensor(self._mdp._features.codify_state(s)),
-                        torch.tensor(self._mdp._features.codify_action(a)), differentiable=True)
+                        torch.tensor(self._actor_features.codify_state(s)),
+                        torch.tensor(self._actor_features.codify_action(a)), differentiable=True)
                 for a in self._mdp.get_actions()
             ])
             for s in self._mdp.get_states()

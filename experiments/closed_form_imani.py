@@ -18,7 +18,7 @@ from herl.classic_envs import get_imani_mdp
 from herl.actor import TabularPolicy
 from herl.rl_interface import RLTask
 from herl.rl_analysis import MDPAnalyzer
-from herl.utils import ProgressBar, Printable
+from herl.utils import ProgressBar, Printable, _one_hot
 
 from algorithms import ClosedLSTDGamma, ClosedSemiGradient
 
@@ -39,7 +39,7 @@ The output of this experiment will be found in `plots/imani-counterexample.pdf` 
 """)
 
 # MPD from Imani et al. 2018
-mdp = get_imani_mdp()
+mdp, actor_features = get_imani_mdp()
 n_states = 4
 n_actions = 2
 
@@ -62,9 +62,15 @@ beta = np.array([[0.25, 0.75],
 # Define the state distribution (similarly to the original paper, but with a positive probability on the terminal state)
 mu = np.array([0.5/2, 0.125/2, 0.375/2, 0.5])
 
+
+def critic_features(s, a):
+    s_a_t = _one_hot(s * n_actions + a, n_states * n_actions)
+    return s_a_t
+
 # Closed form versions of LSTDGamma and SemiGradient
-cf_bg = ClosedLSTDGamma(mdp_task, policy, mu, beta)
-cf_sg = ClosedSemiGradient(mdp_task, policy, mu, beta)
+# P.S. The critic features are perfect, while the actor feature are aliased
+cf_bg = ClosedLSTDGamma(mdp_task, policy, critic_features, actor_features, mu, beta)
+cf_sg = ClosedSemiGradient(mdp_task, policy, critic_features, actor_features, mu, beta)
 
 
 # Train the policy with a given algorithm
@@ -95,8 +101,8 @@ plt.savefig("../plots/imani-counterexample.pdf")
 
 def print_policy(policy_params):
     policy.set_parameters(policy_params)
-    for i, s in enumerate(mdp.get_states(featurize=True)):
-        print("S%d %s" % (i, [policy.get_prob(s, a) for a in mdp.get_actions(featurize=True)]))
+    for i, s in enumerate(mdp.get_states()):
+        print("S%d %s" % (i, [policy.get_prob(s, a) for a in mdp.get_actions()]))
 
 
 print("-"*50)

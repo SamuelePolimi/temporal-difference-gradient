@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 
+from typing import Callable
+
 from herl.rl_interface import RLTask, RLAgent, Critic, PolicyGradient
 from herl.classic_envs import MDP
 from herl.rl_analysis import MDPAnalyzer
@@ -14,7 +16,7 @@ class ClosedSemiGradient(PolicyGradient, Critic):
     while might use imperfect state representation for the policy. (It seems that Imani et al. did a similar experiment)
     """
 
-    def __init__(self, task: RLTask, policy: RLAgent, mu: np.ndarray, beta: np.ndarray):
+    def __init__(self, task: RLTask, policy: RLAgent, critic_features: Callable, actor_features, mu: np.ndarray, beta: np.ndarray):
         super().__init__("ClosedSemiGradient", policy)
         self._task = task
         if type(self._task.environment) is not MDP:
@@ -26,14 +28,12 @@ class ClosedSemiGradient(PolicyGradient, Critic):
         self._n_states = len(self._mdp.get_states())
         self._n_actions = len(self._mdp.get_actions())
 
+        self._actor_features = actor_features
+        self._critic_features = critic_features
+
         self.mu = mu
         self.beta = beta
         self.name = "Semi-Gradient"
-
-    def get_torch_features(self, s, a):
-        s_a_t = _one_hot(s*self._n_actions + a, self._n_states*self._n_actions)
-        s_a_t = torch.tensor(s_a_t)
-        return s_a_t
 
     def get_omega_q(self, mu, beta):
 
@@ -44,7 +44,7 @@ class ClosedSemiGradient(PolicyGradient, Critic):
         A = 0.
         for s in self._mdp.get_states():
             for a in self._mdp.get_actions():
-                phi = self.get_torch_features(s, a)
+                phi = self._critic_features(torch.tensor(s), torch.tensor(a))
                 p_s_a = mu[s] * beta[s, a]
 
                 phi_next = 0.
@@ -52,11 +52,13 @@ class ClosedSemiGradient(PolicyGradient, Critic):
                     for a_n in self._mdp.get_actions():
                         p_s_n = P[a, s, s_n]
                         # Use coding from the MDP
-                        s_n_t = torch.tensor(self._mdp._features.codify_state(s_n))
-                        a_n_t = torch.tensor(self._mdp._features.codify_action(a_n))
-                        p_a_n = self._policy.get_prob(s_n_t, a_n_t, differentiable=True).squeeze()
+                        s_n_t, a_n_t = torch.tensor(s_n), torch.tensor(a_n)
+                        p_a_n = self._policy.get_prob(
+                            self._actor_features.codify_state(s_n_t),
+                            self._actor_features.codify_action(a_n_t),
+                                                      differentiable=True).squeeze()
 
-                        phi_next += p_s_n * p_a_n * self.get_torch_features(s_n, a_n)
+                        phi_next += p_s_n * p_a_n * self._critic_features(s_n_t, a_n_t)
 
                 A += p_s_a * torch.outer(phi, phi - gamma * phi_next)
 
@@ -65,7 +67,7 @@ class ClosedSemiGradient(PolicyGradient, Critic):
             for a in self._mdp.get_actions():
                 p_s_a = mu[s] * beta[s, a]
                 rew = r[a, s]
-                phi = self.get_torch_features(s, a)
+                phi = self._critic_features(s, a)
 
                 b += p_s_a * rew * phi
 
@@ -80,7 +82,7 @@ class ClosedSemiGradient(PolicyGradient, Critic):
         A = 0.
         for s in self._mdp.get_states():
             for a in self._mdp.get_actions():
-                phi = self.get_torch_features(s, a)
+                phi = self._critic_features(s, a)
                 p_s_a = mu[s] * beta[s, a]
 
                 phi_next = 0.
@@ -88,11 +90,11 @@ class ClosedSemiGradient(PolicyGradient, Critic):
                     for a_n in self._mdp.get_actions():
                         p_s_n = P[a, s, s_n]
                         # TODO: check
-                        s_n_t = torch.tensor(self._mdp._features.codify_state(s_n))
-                        a_n_t = torch.tensor(self._mdp._features.codify_action(a_n))
+                        s_n_t = torch.tensor(self._actor_features.codify_state(s_n))
+                        a_n_t = torch.tensor(self._actor_features.codify_action(a_n))
                         p_a_n = self._policy.get_prob(s_n_t, a_n_t, differentiable=True).squeeze()
 
-                        phi_next += p_s_n * p_a_n * self.get_torch_features(s_n, a_n)
+                        phi_next += p_s_n * p_a_n * self._critic_features(s_n, a_n)
 
                 A += p_s_a * torch.outer(phi, phi - gamma * phi_next)
 
@@ -101,7 +103,7 @@ class ClosedSemiGradient(PolicyGradient, Critic):
             for a in self._mdp.get_actions():
                 p_s_a = mu[s] * beta[s, a]
                 rew = r[a, s]
-                phi = self.get_torch_features(s, a)
+                phi = self._critic_features(s, a)
 
                 b += p_s_a * rew * phi
 
@@ -111,7 +113,7 @@ class ClosedSemiGradient(PolicyGradient, Critic):
         omega = self.get_omega_q(mu, beta)
         return torch.stack([
             torch.stack([
-                    torch.inner(self.get_torch_features(s, a), omega)
+                    torch.inner(self._critic_features(torch.tensor(s), torch.tensor(a)), omega)
                 for a in self._mdp.get_actions()
             ])
             for s in self._mdp.get_states()
@@ -121,8 +123,8 @@ class ClosedSemiGradient(PolicyGradient, Critic):
         Q = self.get_q_matrix(mu, beta).detach()
         pi = torch.stack([
                 torch.stack([self._policy.get_prob(
-                        torch.tensor(self._mdp._features.codify_state(s)),
-                        torch.tensor(self._mdp._features.codify_action(a)), differentiable=True)
+                            self._actor_features.codify_state(torch.tensor(s)),
+                            self._actor_features.codify_action(torch.tensor(a)), differentiable=True)
                 for a in self._mdp.get_actions()
             ])
             for s in self._mdp.get_states()

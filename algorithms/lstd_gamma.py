@@ -54,13 +54,7 @@ class LSTDGamma(PolicyGradient, Critic):
 
         return torch.linalg.inv(A) @ torch.mean(phi * r, dim=0)
 
-    def get_gradient(self):
-        """
-        Estimate the gradient.
-        This code take full advantage of automatic differentiation, and on the fact that G_TD = \nabla_theta \omega_TD,
-        as in Lemma 2. \omega_TD is fully differentiable with pytorch.
-        :return:
-        """
+    def get_return(self):
         s_0 = torch.tensor(self._s_0, dtype=torch.float64)
         a_0 = self.policy(s_0, differentiable=True).detach()
         phi_0 = self._critic_features(s_0, a_0, differentiable=True) * \
@@ -69,7 +63,16 @@ class LSTDGamma(PolicyGradient, Critic):
         data_dict = self._dataset.get_full()
         batch = [data_dict[k] for k in ["state", "action", "reward", "next_state", "terminal"]]
         omega = self.get_omega_batch(batch)
-        loss = torch.inner(torch.mean(phi_0, dim=0),  omega)
+        return torch.inner(torch.mean(phi_0, dim=0), omega)
+
+    def get_gradient(self):
+        """
+        Estimate the gradient.
+        This code take full advantage of automatic differentiation, and on the fact that G_TD = \nabla_theta \omega_TD,
+        as in Lemma 2. \omega_TD is fully differentiable with pytorch.
+        :return:
+        """
+        loss = -self.get_return()
         loss.backward()
         ret = self.policy.get_gradient()
         self.policy.zero_grad()
