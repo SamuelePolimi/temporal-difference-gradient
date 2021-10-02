@@ -49,7 +49,7 @@ policy = TabularPolicy(mdp)
 init_parameters = policy.get_parameters()
 
 mdp_task = RLTask(mdp, mdp.get_initial_state_sampler(), max_episode_length=500, gamma=0.9)
-analyzer = MDPAnalyzer(mdp_task, policy)
+analyzer = MDPAnalyzer(mdp_task, policy, actor_features)
 
 # Define off-policy behavior (as in the original paper)
 
@@ -81,7 +81,7 @@ def train(policy_gradient):
     pb = ProgressBar(Printable("Policy Gradient"), max_iteration=1000, prefix='Progress %s' % policy_gradient.name)
     for i in range(1000):
         policy_gradient.update_policy(adam)
-        ret.append(analyzer.get_return().detach().numpy())
+        ret.append((1-mdp_task.gamma) * analyzer.get_return().detach().numpy())
         pb.notify()
     return ret, policy.get_parameters()
 
@@ -99,19 +99,19 @@ tikzplotlib.save("../plots/imani-counterexample.tex")
 plt.savefig("../plots/imani-counterexample.pdf")
 
 
-def print_policy(policy_params):
-    policy.set_parameters(policy_params)
-    for i, s in enumerate(mdp.get_states()):
-        print("S%d %s" % (i, [policy.get_prob(s, a) for a in mdp.get_actions()]))
+# def print_policy(policy_params):
+#     policy.set_parameters(policy_params)
+#     for i, s in enumerate(mdp.get_states()):
+#         print("S%d %s" % (i, [policy.get_prob(s, a) for a in mdp.get_actions()]))
 
 
 print("-"*50)
 print("Semi-Gradient Final Policy:")
-print_policy(param_sg)
+# print_policy(param_sg)
 
 print("-"*50)
 print(r"LSTD\Gamma Gradient Final Policy:")
-print_policy(param_bg)
+# print_policy(param_bg)
 print("-"*50)
 
 # print("Bootstrapped policy gradient: %s" % cf_bg.get_td_gradient(mu, beta))
