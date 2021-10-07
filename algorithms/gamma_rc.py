@@ -9,7 +9,7 @@ from herl.rl_interface import PolicyGradient, Critic, RLAgent, RLParametricModel
 class GammaRC(PolicyGradient, Critic):
 
     def __init__(self, policy: Union[RLAgent, RLParametricModel], critic_features, actor_features,
-                 task_descriptor: RLTaskDescriptor, n_starting_state=10, n_critic_approximation=1,
+                 task_descriptor: RLTaskDescriptor, n_critic_features, n_starting_state=10, n_critic_approximation=1,
                  reparametrization=False, regularization=1., learning_rate=1., decreasing_learning_rate=False):
         """
         LSTDGamma as described in Algorithm 1.
@@ -35,7 +35,7 @@ class GammaRC(PolicyGradient, Critic):
         self._regularization = regularization
 
         self.n_p = len(self.policy.get_parameters())
-        self.n_f = 8   # TODO: replace with real values
+        self.n_f = n_critic_features
 
         self._G = np.zeros((self.n_f, self.n_p))
         self._H = np.zeros((self.n_f, self.n_p))
@@ -125,7 +125,10 @@ class GammaRC(PolicyGradient, Critic):
         :param s: 1D vector representing a state
         :param a: 1D vector representing an action
         """
-        prob = self.policy.get_prob(torch.tensor([s]), torch.tensor([a]))
+        state = s
+        if self._actor_features is not None:
+            state = self._actor_features.codify_state(s).ravel()
+        prob = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]))
         log_prob = torch.log(prob)
         log_prob = log_prob.squeeze()
         log_prob.backward()
@@ -164,7 +167,7 @@ class GammaRC(PolicyGradient, Critic):
 
         x = self.phi(s, a).T
         x_n = self.phi(s_n, a_n).T
-        self._G = self._G + alpha * x @ epsilon.T # - alpha * self._gamma * x_n @ x.T @ self._H
+        self._G = self._G + alpha * x @ epsilon.T  # - alpha * self._gamma * x_n @ x.T @ self._H
         self._H = self._H + alpha * x @ epsilon.T - alpha * x @ x.T @ self._H - alpha * self._beta * self._H
 
     def update_time(self, s: np.ndarray, a: np.ndarray):

@@ -63,7 +63,7 @@ class ClosedSemiGradient(PolicyGradient, ClosedLSTD):
     def surrogate(self):
         v = self.get_v_vector()
         mu_t = torch.tensor(self.mu, dtype=torch.float64)
-        return torch.inner(mu_t, v)
+        return (1 - self._task.gamma) * torch.inner(mu_t, v)
 
     def get_gradient(self):
         j = -self.surrogate()

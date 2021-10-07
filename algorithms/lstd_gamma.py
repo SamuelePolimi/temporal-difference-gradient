@@ -122,7 +122,7 @@ class LSTDGamma(PolicyGradient, Critic):
         A_inv = torch.linalg.inv(A + self._regularization * torch.eye(A.shape[0])).detach()
         g = - A_inv @ A_diff @ A_inv @ b
 
-        pi_log = torch.log(self.policy.get_prob(s_0, a_0, differentiable=True))
+        pi_log = self.get_log_prob(s_0, a_0)
 
         if self._reparametrization:
             first_term = torch.inner(torch.mean(phi_0, dim=0), A_inv @ b)
@@ -138,7 +138,7 @@ class LSTDGamma(PolicyGradient, Critic):
         as in Lemma 2. \omega_TD is fully differentiable with pytorch.
         :return:
         """
-        loss = -self.get_surrogate_loss()
+        loss = self.get_surrogate_loss()
         loss.backward()
         ret = self.policy.get_gradient()
         self.policy.zero_grad()
