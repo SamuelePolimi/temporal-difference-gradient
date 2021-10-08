@@ -18,8 +18,8 @@ Suggestion: to render progress bars, enable `emulate in console` if using `pycha
 TODO
 --
 
-- [ ] Write a version of Imani's counterexample with empirical estimation of the gradient
-- [ ] Implement semigradient with given critic
-- [ ] Implement TDC-Gamma (perhaps with replay buffer?)
+- [x] Write a version of Imani's counterexample with empirical estimation of the gradient
+- [x] Implement semigradient with given critic
+- [x] Implement RCGamma
 - [ ] Test LSTDGamma on ContinuousMountainCar (RBF Features?)
 - [ ] Test TDCGamma on ContinuousMountainCar (RBF Features?)

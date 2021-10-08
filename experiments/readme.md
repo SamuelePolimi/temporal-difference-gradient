@@ -12,16 +12,42 @@ We also have a slightly different (but equivalent) treatment of the terminal sta
 state is just absorbing with reward=0. This modifies the on-policy distribution, but yields same expected return and 
 same policy gradient.
 
-The output of this experiment will be found in `plots/imani-counterexample.pdf` and `.tikz`.
+The output of this experiment will be found in `plots/imani/closed_form_lstd_gamma`
 
-Unbiasedness of LSTDGamma in LQR (`lqr_gradient.py`)
+Lambda-LSTDGamma Learning Curves (`lambda_lstd_gamma_imani.py`)
 --
 
-This experiment aims to prove empirically that the gradient estimation of LSTD\Gamma is unbiased on LQR.
-In fact, LQR allows us to easily construct *perfect features* (see Theorem 2), since we know that the Q-function is 
-quadratic w.r.t. states and actions.
+__Figure 3b__
 
-To prove the unbiasedness, we first compute the gradient of LQR in closed form. Then, we sample off-policy datasets, and we collect
-a high number of indipendent gradient estimates with different instantiations of LSTD\Gamma.
+Produces the learning curves of different values of lambda for `Imani MPD`. 
+Output in `plots/imani/lambda_lstd_gamma`.
 
-If the average gradient estimate is *close enough* to the true gradient, we can think that the gradient estimator is unbiased.
+Lambda-LSTDGamma Final Performance. (`lambda_lstd_gamma_imani_last_performance.py`)
+--
+
+__Figure 3c__
+
+Visualizes the final performance of \lambda-LSTD\Gamma for many different values of \lambda.
+Output in `plots/imani/lambda_lstd_gamma_last`.
+
+Lambda-LSTDGamma Gradient (`lambda_lstd_gamma_imani_gradient.py`)
+--
+
+
+__Figure 4a__
+
+Visualizes different gradient estimates for different values of Lambda.
+Output in `plots/imani/lambda_lstd_gamma_gradient`
+
+Lambda-LSTDGamma Bias and Variance (`lambda_lstd_gamma_imani_bias.py`)
+--
+
+__Figure 4b__
+
+Visualizes the MSE of the gradient estimation decomposed in bias and variance.
+Output in `plots/imani/lambda_lstd_gamma_bias`
+
+
+
+
+Figure 3a of the paper. 
