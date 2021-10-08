@@ -17,7 +17,8 @@ import tikzplotlib
 from herl.classic_envs import get_imani_mdp
 from herl.actor import TabularPolicy
 from herl.rl_interface import RLTask
-from herl.rl_analysis import MDPAnalyzer
+from herl.rl_analysis import MDPAnalyzer, bias_variance_estimate
+from herl.rl_visualizer import BiasVarianceVisualizer
 from herl.utils import ProgressBar, Printable, _one_hot
 from herl.solver import RLCollector
 
@@ -73,6 +74,7 @@ def critic_features(s, a):
 # Dataset Generation
 # ------------------------
 
+
 n_samples = 500
 
 
@@ -85,54 +87,30 @@ def get_dataset():
 
 lambdas = np.linspace(0., 1., 20)
 # Closed form versions of LSTDGamma and SemiGradient
-if actor_aliasing:
-    lstd_gamma = [LambdaLSTDGamma(setting.policy, critic_features, setting.actor_features, get_dataset(),
-                           setting.mdp_task.get_descriptor(), regularization=0., _lambda=_lambda) for _lambda in lambdas]
-else:
-    lstd_gamma = [LambdaLSTDGamma(setting.policy, critic_features, None, get_dataset(),
-                     setting.mdp_task.get_descriptor(), regularization=0., _lambda=_lambda) for _lambda in
-     lambdas]
+
+lstd_gamma = lambda dataset, _lambda: LambdaLSTDGamma(setting.policy, critic_features, setting.actor_features, dataset,
+                           setting.mdp_task.get_descriptor(), regularization=0., _lambda=_lambda)
 
 # --------------------------------------------
 # Train the policy with a given algorithm
 # --------------------------------------------
+idx = 2
 
 setting.policy.set_parameters(setting.init_parameters)
 ground_truth = analyzer.get_policy_gradient()
 
+estimator = lambda _lambda: lambda: lstd_gamma(get_dataset(), _lambda).get_gradient()
 
-def train(policy_gradient):
-    error = np.mean((policy_gradient.get_gradient() - ground_truth)**2)
-    print(policy_gradient.name, error)
-    return error
-
-
-# ---------------------------------------------
-# Plot the Mean Squared Error
-# ---------------------------------------------
-
-def plot(results):
-    color = np.array([1., 0.5, 0.])
-    n_res = results.shape[1]
-    resolution = results.shape[0]
-    ret_sg_m = np.mean(results, axis=1)
-    ret_sg_t = 1.96 * np.std(results, axis=1) / np.sqrt(n_res)
-    x = np.array(range(resolution))/resolution
-    plt.plot(x, ret_sg_m, label=r"$\lambda$-LSTD$\Gamma$", color=color)
-    plt.fill_between(x, ret_sg_m + ret_sg_t, ret_sg_m - ret_sg_t, alpha=0.5, color=color)
+x_scatter = []
+y_scatter = []
 
 
-ret_gamma = [[train(alg) for _ in range(50)] for alg in lstd_gamma]
+np.save("../plots/imani/lambda_lstd_gamma_gradient/ground_truth.npy", ground_truth)
+exit()
+for _lambda in lambdas:
+    for _ in range(20):
+        x_scatter.append(_lambda)
+        y_scatter.append(estimator(_lambda)())
 
-plot(np.array(ret_gamma))
-
-plt.ylabel(r"$RMSE J(\theta)$")
-plt.xlabel("$\lambda$")
-plt.legend(loc="best")
-
-critic_name = "critic_aliasing" if critic_aliasing else "no_critic_aliasing"
-actor_name = "actor_aliasing" if actor_aliasing else "no_actor_aliasing"
-tikzplotlib.save("../plots/imani/lambda_lstd_gamma_rmse/%s_%s.tex" % (actor_name, critic_name))
-plt.savefig("../plots/imani/lambda_lstd_gamma_rmse/%s_%s.pdf" % (actor_name, critic_name))
-
-
+np.save("../plots/imani/lambda_lstd_gamma_gradient/xs.npy", x_scatter)
+np.save("../plots/imani/lambda_lstd_gamma_gradient/ys.npy", y_scatter)

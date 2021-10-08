@@ -17,7 +17,8 @@ import tikzplotlib
 from herl.classic_envs import get_imani_mdp
 from herl.actor import TabularPolicy
 from herl.rl_interface import RLTask
-from herl.rl_analysis import MDPAnalyzer
+from herl.rl_analysis import MDPAnalyzer, bias_variance_estimate
+from herl.rl_visualizer import BiasVarianceVisualizer
 from herl.utils import ProgressBar, Printable, _one_hot
 from herl.solver import RLCollector
 
@@ -86,60 +87,65 @@ def get_dataset():
 
 lambdas = np.linspace(0., 1., 20)
 # Closed form versions of LSTDGamma and SemiGradient
-# if actor_aliasing:
-#     lstd_gamma = [LambdaLSTDGamma(setting.policy, critic_features, setting.actor_features, dataset,
-#                            setting.mdp_task.get_descriptor(), regularization=0., _lambda=_lambda) for _lambda in lambdas]
-# else:
-#     lstd_gamma = [lambda dataset: LambdaLSTDGamma(setting.policy, critic_features, None, dataset,
-#                      setting.mdp_task.get_descriptor(), regularization=0., _lambda=_lambda) for _lambda in
-#      lambdas]
+
+lstd_gamma = lambda dataset, _lambda: LambdaLSTDGamma(setting.policy, critic_features, setting.actor_features, dataset,
+                           setting.mdp_task.get_descriptor(), regularization=1E-16, _lambda=_lambda)
 
 # --------------------------------------------
 # Train the policy with a given algorithm
 # --------------------------------------------
+idx = 2
+
+setting.policy.set_parameters(setting.init_parameters)
+ground_truth = analyzer.get_policy_gradient()
+
+estimator = lambda _lambda: lambda: lstd_gamma(get_dataset(), _lambda).get_gradient()
 
 
-def train(policy_gradient):
-    n_iterations = 1000
-    setting.policy.set_parameters(setting.init_parameters)
-    adam = torch.optim.Adam(setting.policy.parameters(), lr=0.01)
-    pb = ProgressBar(Printable("Policy Gradient"), max_iteration=n_iterations, prefix='Progress %s' % policy_gradient.name)
-    for i in range(n_iterations):
-        policy_gradient.update_policy(adam)
+def compute_bias(values):
+    return np.mean(np.mean([value - ground_truth for value in values], axis=0)**2)
+
+
+def compute_var(values):
+    return np.mean(np.std(values, axis=0)**2)
+
+
+def compute_mse(values):
+    return np.mean([(value - ground_truth)**2 for value in values])
+
+
+mse_m = []
+mse_conf = []
+bias_m = []
+bias_conf = []
+var_m = []
+var_conf = []
+
+n_batches = 50
+pb = ProgressBar(Printable("Bias Variance Mse"), max_iteration=len(lambdas)*n_batches*20)
+for _lambda in lambdas:
+    mses = []
+    biases = []
+    variances = []
+    for _ in range(n_batches):
+        values = [[estimator(_lambda)(), pb.notify()][0] for _ in range(20)]
+        mses.append(compute_mse(values))
+        biases.append(compute_bias(values))
+        variances.append(compute_var(values))
         pb.notify()
-    return (1-setting.mdp_task.gamma) * analyzer.get_return().detach().numpy()
+
+    bias_m.append(np.mean(biases))
+    var_m.append(np.mean(variances))
+    mse_m.append(np.mean(mses))
+
+    bias_conf.append(1.96*np.std(biases)/np.sqrt(n_batches))
+    var_conf.append(1.96*np.std(variances)/np.sqrt(n_batches))
+    mse_conf.append(1.96*np.std(mses)/np.sqrt(n_batches))
 
 
-# ---------------------------------------------
-# Plot the learning curve
-# ---------------------------------------------
-
-def plot(results):
-    color = np.array([1., 0.5, 0.])
-    n_res = results.shape[1]
-    resolution = results.shape[0]
-    ret_sg_m = np.mean(results, axis=1)
-    ret_sg_t = 1.96 * np.std(results, axis=1) / np.sqrt(n_res)
-    x = np.array(range(resolution))/resolution
-    plt.plot(x, ret_sg_m, label=r"$\lambda$-LSTD$\Gamma$")
-    plt.fill_between(x, ret_sg_m + ret_sg_t, ret_sg_m - ret_sg_t, alpha=0.5, color=color)
-
-
-ret_gamma = [np.array([train(
-    LambdaLSTDGamma(setting.policy, critic_features, setting.actor_features, get_dataset(),
-                               setting.mdp_task.get_descriptor(), regularization=0., _lambda=_lambda)
-) for _ in range(5)]) for _lambda in lambdas]
-
-plot(np.array(ret_gamma))
-
-plt.ylabel(r"$J(\theta)$")
-plt.xlabel("$\lambda$")
-plt.legend(loc="best")
-
-np.save("../plots/imani/lambda_lstd_gamma_last/ret_gamma.npy", ret_gamma)
-critic_name = "critic_aliasing" if critic_aliasing else "no_critic_aliasing"
-actor_name = "actor_aliasing" if actor_aliasing else "no_actor_aliasing"
-tikzplotlib.save("../plots/imani/lambda_lstd_gamma_last/%s_%s.tex" % (actor_name, critic_name))
-plt.savefig("../plots/imani/lambda_lstd_gamma_last/%s_%s.pdf" % (actor_name, critic_name))
-
-
+np.save("../plots/imani/lambda_lstd_gamma_bias/bias_m.npy", bias_m)
+np.save("../plots/imani/lambda_lstd_gamma_bias/var_m.npy", var_m)
+np.save("../plots/imani/lambda_lstd_gamma_bias/mse_m.npy", mse_m)
+np.save("../plots/imani/lambda_lstd_gamma_bias/bias_conf.npy", bias_conf)
+np.save("../plots/imani/lambda_lstd_gamma_bias/var_conf.npy", var_conf)
+np.save("../plots/imani/lambda_lstd_gamma_bias/mse_conf.npy", mse_conf)

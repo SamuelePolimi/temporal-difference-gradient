@@ -25,7 +25,7 @@ class LambdaLSTDGamma(LSTDGamma):
         super().__init__(policy, critic_features, actor_features, dataset,
                  task_descriptor, n_starting_state, n_critic_approximation,
                  reparametrization, regularization)
-        self.name = r"LSTD\Gamma \lambda={:.1f}".format(_lambda)
+        self.name = r"LSTD\Gamma \lambda={:.2f}".format(_lambda)
         self._lambda = _lambda
 
     def get_surrogate_loss(self):
