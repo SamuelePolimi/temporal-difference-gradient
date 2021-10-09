@@ -6,11 +6,11 @@ from herl.rl_interface import PolicyGradient, Critic, RLAgent, RLParametricModel
     DeterministicState, StochasticState, StateDistribution
 
 
-class GammaRC(PolicyGradient, Critic):
+class LambdaRCGamma(PolicyGradient, Critic):
 
     def __init__(self, policy: Union[RLAgent, RLParametricModel], critic_features, actor_features,
                  task_descriptor: RLTaskDescriptor, n_critic_features, n_starting_state=10, n_critic_approximation=1,
-                 reparametrization=False, regularization=1., learning_rate=1., decreasing_learning_rate=False):
+                 reparametrization=False, regularization=1., _lambda=0., learning_rate=1., decreasing_learning_rate=False):
         """
         LSTDGamma as described in Algorithm 1.
         :param policy: A parametric policy
@@ -24,6 +24,8 @@ class GammaRC(PolicyGradient, Critic):
         self._critic_features = critic_features
         self._actor_features = actor_features
         self._gamma = task_descriptor.gamma
+        self._lambda = _lambda
+        self._mu = 0
 
         if task_descriptor.initial_state_distribution.is_deterministic():
             self._s_0 = np.array([task_descriptor.initial_state_distribution.sample()])
@@ -115,7 +117,7 @@ class GammaRC(PolicyGradient, Critic):
         x = self.phi(s, a).T
         x_n = self.phi(s_n, a_n).T
         #
-        self._omega = self._omega + alpha * delta * x # - alpha * self._gamma * (self._sigma.T @ x)[0, 0] * x_n
+        self._omega = self._omega + alpha * delta * x - alpha * self._gamma * (self._sigma.T @ x)[0, 0] * x_n
         self._sigma = self._sigma \
                       + alpha * (delta - (self._sigma.T @ x)[0, 0]) * x - alpha * self._beta * self._sigma
 
@@ -167,7 +169,7 @@ class GammaRC(PolicyGradient, Critic):
 
         x = self.phi(s, a).T
         x_n = self.phi(s_n, a_n).T
-        self._G = self._G + alpha * x @ epsilon.T  # - alpha * self._gamma * x_n @ x.T @ self._H
+        self._G = self._G + alpha * x @ epsilon.T - alpha * self._gamma * x_n @ x.T @ self._H
         self._H = self._H + alpha * x @ epsilon.T - alpha * x @ x.T @ self._H - alpha * self._beta * self._H
 
     def update_time(self, s: np.ndarray, a: np.ndarray):
@@ -207,9 +209,16 @@ class GammaRC(PolicyGradient, Critic):
         """
         return self.phi(state, action) @ self._G
 
-    def get_surrogate_loss(self):
+    def get_surrogate_loss(self, s):
         # TODO: implement
-        pass
+        parameters = self.policy.get_torch_parameters()
+        a = self.get_on_policy_action(s)
+
+        # Equation 13 of the paper
+        gradient = torch.tensor(self.get_Q(s, a) * self.get_nabla_log(s, a)\
+                                + (1-self._lambda) * self.get_Gamma(s, a).reshape(-1)).reshape(-1)
+        # Equation 13 of the p[aper
+        return self._mu * torch.inner(torch.tensor(gradient), parameters)
 
     def get_gradient(self):
         """
@@ -224,8 +233,12 @@ class GammaRC(PolicyGradient, Critic):
         self.policy.zero_grad()
         return ret
 
-    def update_policy(self, optimizer):
+    def update_policy(self, optimizer, s, reset=False):
         optimizer.zero_grad()
-        j = -self.get_surrogate_loss()
+        j = -self.get_surrogate_loss(s)
         j.backward()
         optimizer.step()
+        if reset:
+            self._mu = 1.
+        else:
+            self._mu *= self._gamma * self._lambda
