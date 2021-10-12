@@ -43,7 +43,8 @@ beta = 1.0
 
 id_start = 5
 id_stop = 10
-
+print(sys.argv)
+exit()
 
 class MyFeatures(MDPFeatureInterface):
 
