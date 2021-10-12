@@ -56,7 +56,7 @@ class LambdaLSTDGamma(LSTDGamma):
                     first_term = torch.inner(torch.mean(phi.detach() * pi_log, dim=0), omega)
 
                 surrogate += mu * (first_term + (1 - self._lambda) * torch.inner(torch.mean(phi.detach(), dim=0), g))
-                mu *= self._lambda #* self._gamma
+                mu *= self._lambda * self._gamma
             surrogates.append(surrogate)
 
         return (1-self._gamma) * sum(surrogates)/len(surrogates)

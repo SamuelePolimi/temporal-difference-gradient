@@ -65,7 +65,10 @@ class LambdaRCGamma(PolicyGradient, Critic):
         :param a: 1D vector representing an action
         :return:
         """
-        return 1/self._t[s[0], a[0]]
+        if self._decreasing_alpha:
+            return 1/self._t[s[0], a[0]]
+        else:
+            return self._alpha
 
     def get_scalar_Q(self, s: np.ndarray, a: np.ndarray):
         """
@@ -217,7 +220,7 @@ class LambdaRCGamma(PolicyGradient, Critic):
         # Equation 13 of the paper
         gradient = torch.tensor(self.get_Q(s, a) * self.get_nabla_log(s, a)\
                                 + (1-self._lambda) * self.get_Gamma(s, a).reshape(-1)).reshape(-1)
-        # Equation 13 of the p[aper
+        # Equation 13 of the paper
         return self._mu * torch.inner(torch.tensor(gradient), parameters)
 
     def get_gradient(self):
@@ -234,11 +237,16 @@ class LambdaRCGamma(PolicyGradient, Critic):
         return ret
 
     def update_policy(self, optimizer, s, reset=False):
-        optimizer.zero_grad()
-        j = -self.get_surrogate_loss(s)
-        j.backward()
-        optimizer.step()
+        if self._mu != 0.:
+            optimizer.zero_grad()
+            j = -self.get_surrogate_loss(s)
+            j.backward()
+            optimizer.step()
         if reset:
             self._mu = 1.
         else:
             self._mu *= self._gamma * self._lambda
+        self.policy.zero_grad()
+
+    def reset(self):
+        self._mu = 1.

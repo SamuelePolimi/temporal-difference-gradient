@@ -149,3 +149,4 @@ class LSTDGamma(PolicyGradient, Critic):
         j = -self.get_surrogate_loss()
         j.backward()
         optimizer.step()
+        self.policy.zero_grad()
