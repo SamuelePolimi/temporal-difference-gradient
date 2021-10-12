@@ -44,6 +44,7 @@ beta = 1.0
 id_start = 5
 id_stop = 10
 print(sys.argv)
+np.save("../plots/mdps/lambda_rc_gamma_learning/test.npy", np.array([1.]))
 exit()
 
 class MyFeatures(MDPFeatureInterface):
