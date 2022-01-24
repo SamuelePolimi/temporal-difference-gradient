@@ -10,7 +10,8 @@ class LambdaRCGamma(PolicyGradient, Critic):
 
     def __init__(self, policy: Union[RLAgent, RLParametricModel], critic_features, actor_features,
                  task_descriptor: RLTaskDescriptor, n_critic_features, n_starting_state=10, n_critic_approximation=1,
-                 reparametrization=False, regularization=1., _lambda=0., learning_rate=1., decreasing_learning_rate=False):
+                 reparametrization=False, regularization=1., _lambda=0., learning_rate=1.,
+                 decreasing_learning_rate=False, pure_td=False, less_computation=False, delayed=True):
         """
         LSTDGamma as described in Algorithm 1.
         :param policy: A parametric policy
@@ -26,6 +27,9 @@ class LambdaRCGamma(PolicyGradient, Critic):
         self._gamma = task_descriptor.gamma
         self._lambda = _lambda
         self._mu = 0
+        self._pure_td = pure_td
+        self._less_computation = less_computation
+        self._delayed = delayed
 
         if task_descriptor.initial_state_distribution.is_deterministic():
             self._s_0 = np.array([task_descriptor.initial_state_distribution.sample()])
@@ -120,9 +124,12 @@ class LambdaRCGamma(PolicyGradient, Critic):
         x = self.phi(s, a).T
         x_n = self.phi(s_n, a_n).T
         #
-        self._omega = self._omega + alpha * delta * x - alpha * self._gamma * (self._sigma.T @ x)[0, 0] * x_n
-        self._sigma = self._sigma \
-                      + alpha * (delta - (self._sigma.T @ x)[0, 0]) * x - alpha * self._beta * self._sigma
+        if self._pure_td:
+            self._omega = self._omega + alpha * delta * x
+        else:
+            self._omega = self._omega + alpha * delta * x - alpha * self._gamma * (self._sigma.T @ x)[0, 0] * x_n
+            self._sigma = self._sigma \
+                          + alpha * (delta - (self._sigma.T @ x)[0, 0]) * x - alpha * self._beta * self._sigma
 
     def get_nabla_log(self, s: np.ndarray, a: np.ndarray):
         """
@@ -151,7 +158,10 @@ class LambdaRCGamma(PolicyGradient, Critic):
         :param t: True if the transition is a terminal one
         :return:
         """
-        immediate_gradient = self._gamma * self.get_scalar_Q(s_n, a_n) * self.get_nabla_log(s_n, a_n)
+        if self._delayed:
+            immediate_gradient = self._gamma * self.get_scalar_Q(s_n, a_n) * self.get_nabla_log(s_n, a_n)
+        else:
+            immediate_gradient = self.get_scalar_Q(s, a) * self.get_nabla_log(s, a)
         return (immediate_gradient +
                    self._gamma * (1-t) * self.get_vector_Gamma(s_n, a_n) - self.get_vector_Gamma(s, a)).reshape(-1, 1)
 
@@ -172,8 +182,11 @@ class LambdaRCGamma(PolicyGradient, Critic):
 
         x = self.phi(s, a).T
         x_n = self.phi(s_n, a_n).T
-        self._G = self._G + alpha * x @ epsilon.T - alpha * self._gamma * x_n @ x.T @ self._H
-        self._H = self._H + alpha * x @ epsilon.T - alpha * x @ x.T @ self._H - alpha * self._beta * self._H
+        if self._pure_td:
+            self._G = self._G + alpha * x @ epsilon.T
+        else:
+            self._G = self._G + alpha * x @ epsilon.T - alpha * self._gamma * x_n @ x.T @ self._H
+            self._H = self._H + alpha * x @ epsilon.T - alpha * x @ x.T @ self._H - alpha * self._beta * self._H
 
     def update_time(self, s: np.ndarray, a: np.ndarray):
         """
@@ -217,9 +230,14 @@ class LambdaRCGamma(PolicyGradient, Critic):
         parameters = self.policy.get_torch_parameters()
         a = self.get_on_policy_action(s)
 
-        # Equation 13 of the paper
-        gradient = torch.tensor(self.get_Q(s, a) * self.get_nabla_log(s, a)\
-                                + (1-self._lambda) * self.get_Gamma(s, a).reshape(-1)).reshape(-1)
+        if self._delayed:
+            # Equation 13 of the paper
+            gradient = torch.tensor(self.get_Q(s, a) * self.get_nabla_log(s, a)\
+                                    + (1-self._lambda) * self.get_Gamma(s, a).reshape(-1)).reshape(-1)
+        else:
+            gradient = torch.tensor(self._lambda * self.get_Q(s, a) * self.get_nabla_log(s, a)\
+                                    + (1-self._lambda) * self.get_Gamma(s, a).reshape(-1)).reshape(-1)
+
         # Equation 13 of the paper
         return self._mu * torch.inner(torch.tensor(gradient), parameters)
 
@@ -237,7 +255,7 @@ class LambdaRCGamma(PolicyGradient, Critic):
         return ret
 
     def update_policy(self, optimizer, s, reset=False):
-        if self._mu != 0.:
+        if self._mu != 0. or not self._less_computation:
             optimizer.zero_grad()
             j = -self.get_surrogate_loss(s)
             j.backward()

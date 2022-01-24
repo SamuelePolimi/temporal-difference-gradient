@@ -6,3 +6,5 @@ from algorithms.lambda_lstd_gamma import LambdaLSTDGamma
 from algorithms.lstd_gamma import LSTDGamma
 from algorithms.semi_gradient import SemiGradient
 from algorithms.lambda_rc_gamma import LambdaRCGamma
+from algorithms.offpac import OffPAC
+from algorithms.ace import ACE
