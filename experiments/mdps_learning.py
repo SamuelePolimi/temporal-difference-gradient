@@ -198,8 +198,8 @@ def experiment(_lambda, setting: Setting, algorithm_name: str):
 for _lambda in [0., 0.25, 0.5, 0.75, 1.]:
     print("Testing RC-Lambda %.2f, Setting %d" % (_lambda, setting.id))
     returns = [experiment(_lambda, setting, "rc_lambda") for _ in range(1)]
-    np.save("../plots/mdps/learning/returns-rcl-%.2f-%d.npy" % (_lambda, setting.id), returns)
+    np.save("plots/mdps/learning/returns-rcl-%.2f-%d.npy" % (_lambda, setting.id), returns)
 returns = [experiment(_lambda, setting, "offpac") for _ in range(1)]
-np.save("../plots/mdps/learning/returns-offpac-%d.npy" % setting.id, returns)
+np.save("plots/mdps/learning/returns-offpac-%d.npy" % setting.id, returns)
 returns = [experiment(_lambda, setting, "ace") for _ in range(1)]
-np.save("../plots/mdps/learning/returns-ace-%d.npy" % setting.id, returns)
+np.save("plots/mdps/learning/returns-ace-%d.npy" % setting.id, returns)
