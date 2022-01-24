@@ -97,7 +97,7 @@ class Setting:
 
 actor_feature_parameters = actor_features
 
-n_trajectories = 100    # 50000
+n_trajectories = 50000
 length = 10                 # make sure the state-actions are visited enough
 gamma = 0.95
 
