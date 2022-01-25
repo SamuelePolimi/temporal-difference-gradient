@@ -139,10 +139,10 @@ def experiment(_lambda, setting: Setting, algorithm_name: str):
                                   numerical_position_head=numerical_position_head)
     elif algorithm_name == "offpac":
         algorithm = OffPAC(policy, setting.behavior_policy, critic_features, actor_feature_parameters, setting.mdp_task.get_descriptor(), n_codes,
-                           trace=0.1, critic_learning_rate=alpha, gtd_reg=0.1)
+                           trace=0., critic_learning_rate=alpha, gtd_reg=0.1)
     elif algorithm_name == "ace":
         algorithm = ACE(policy, setting.behavior_policy, critic_features, actor_feature_parameters, setting.mdp_task.get_descriptor(), n_codes,
-                        critic_trace=0.1, critic_learning_rate=alpha, gtd_reg=0.1, eta=1.0)
+                        critic_trace=0., critic_learning_rate=alpha, gtd_reg=0.1, eta=1.0)
 
     setting.policy.set_parameters(setting.init_parameters)
     adam = torch.optim.Adam(setting.policy.parameters(), lr=0.001*alpha)     # 0.001 was good
