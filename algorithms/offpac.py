@@ -68,7 +68,10 @@ class OffPAC(PolicyGradient, Critic):
         state = s
         if self._actor_features is not None:
             state = self._actor_features.codify_state(s).ravel()
-        prob = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]))
+        try:
+            prob = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]), differentiable=True)
+        except:
+            prob = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]))
         log_prob = torch.log(prob)
         log_prob = log_prob.squeeze()
         log_prob.backward()
@@ -85,8 +88,12 @@ class OffPAC(PolicyGradient, Critic):
         state = s
         if self._actor_features is not None:
             state = self._actor_features.codify_state(s).ravel()
-        prob_a = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]))
-        prob_b = self._behavior.get_prob(torch.tensor([state]), torch.tensor([a]))
+        try:
+            prob_a = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]), differentiable=True)
+            prob_b = self._behavior.get_prob(torch.tensor([state]), torch.tensor([a]), differentiable=True)
+        except:
+            prob_a = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]))
+            prob_b = self._behavior.get_prob(torch.tensor([state]), torch.tensor([a]))
         return np.asscalar((prob_a/prob_b).detach().numpy())
 
     def update_critic(self,  s: np.ndarray, a: np.ndarray, r: np.ndarray, s_n: np.ndarray, t: bool):

@@ -11,7 +11,8 @@ class LambdaRCGamma(PolicyGradient, Critic):
     def __init__(self, policy: Union[RLAgent, RLParametricModel], critic_features, actor_features,
                  task_descriptor: RLTaskDescriptor, n_critic_features, n_starting_state=10, n_critic_approximation=1,
                  reparametrization=False, regularization=1., _lambda=0., learning_rate=1.,
-                 decreasing_learning_rate=False, pure_td=False, less_computation=False, delayed=True):
+                 decreasing_learning_rate=False, pure_td=False, less_computation=False, delayed=True,
+                 head_parameters=None, body_parameters=None, numerical_position_head=None):
         """
         LSTDGamma as described in Algorithm 1.
         :param policy: A parametric policy
@@ -40,7 +41,15 @@ class LambdaRCGamma(PolicyGradient, Critic):
         self._reparametrization = reparametrization
         self._regularization = regularization
 
-        self.n_p = len(self.policy.get_parameters())
+        self._full_training = head_parameters is None and body_parameters is None
+        if self._full_training:
+            self.n_p = len(self.policy.get_parameters())
+        else:
+            self.n_p = len(self.policy.get_parameters(head_parameters))
+
+        self._head_parameters = head_parameters
+        self._numerical_position_head = numerical_position_head
+
         self.n_f = n_critic_features
 
         self._G = np.zeros((self.n_f, self.n_p))
@@ -140,11 +149,20 @@ class LambdaRCGamma(PolicyGradient, Critic):
         state = s
         if self._actor_features is not None:
             state = self._actor_features.codify_state(s).ravel()
-        prob = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]))
+        # TODO: check if differentiable creates problem. Probably yes.
+        try:
+            prob = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]), differentiable=True)
+        except:
+            prob = self.policy.get_prob(torch.tensor([state]), torch.tensor([a]))
+
         log_prob = torch.log(prob)
         log_prob = log_prob.squeeze()
         log_prob.backward()
-        ret = self.policy.get_gradient()
+        try:
+            ret = self.policy.get_gradient(numerical_position=self._numerical_position_head)
+        except:
+            ret = self.policy.get_gradient()
+
         self.policy.zero_grad()
         return ret
 
@@ -227,7 +245,11 @@ class LambdaRCGamma(PolicyGradient, Critic):
 
     def get_surrogate_loss(self, s):
         # TODO: implement
-        parameters = self.policy.get_torch_parameters()
+        if self._head_parameters is None:
+            parameters = self.policy.get_torch_parameters()
+        else:
+            parameters = self.policy.get_torch_parameters(self._numerical_position_head)
+
         a = self.get_on_policy_action(s)
 
         if self._delayed:
@@ -240,6 +262,19 @@ class LambdaRCGamma(PolicyGradient, Critic):
 
         # Equation 13 of the paper
         return self._mu * torch.inner(torch.tensor(gradient), parameters)
+
+    def get_surrogate_body_loss(self, s):
+        # TODO: implement
+        parameters = self.policy.get_torch_parameters()
+        a = self.get_on_policy_action(s)
+
+        state = torch.tensor(s)
+        action = torch.tensor(a)
+
+        ret = self.get_Q(s, a).item() * torch.log(self.policy.get_prob(state, action, differentiable=True))
+
+        # Equation 13 of the paper
+        return torch.mean(ret)
 
     def get_gradient(self):
         """
@@ -254,16 +289,20 @@ class LambdaRCGamma(PolicyGradient, Critic):
         self.policy.zero_grad()
         return ret
 
-    def update_policy(self, optimizer, s, reset=False):
+    def update_body_policy(self, optimizer, s):
+        optimizer.zero_grad()
+        j = -self.get_surrogate_body_loss(s)
+        j.backward()
+        optimizer.step()
+        self.policy.zero_grad()
+
+    def update_policy(self, optimizer, s):
         if self._mu != 0. or not self._less_computation:
             optimizer.zero_grad()
             j = -self.get_surrogate_loss(s)
             j.backward()
             optimizer.step()
-        if reset:
-            self._mu = 1.
-        else:
-            self._mu *= self._gamma * self._lambda
+        self._mu *= self._gamma * self._lambda
         self.policy.zero_grad()
 
     def reset(self):
