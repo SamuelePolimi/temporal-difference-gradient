@@ -302,7 +302,7 @@ class LambdaRCGamma(PolicyGradient, Critic):
             j = -self.get_surrogate_loss(s)
             j.backward()
             optimizer.step()
-        self._mu *= self._lambda
+        self._mu *= self._gamma * self._lambda
         self.policy.zero_grad()
 
     def reset(self):
