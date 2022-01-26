@@ -35,8 +35,13 @@ The output of this experiment will be found in `/plots/mdp/learning`
 
 """)
 
-n_states = 10
+n_states = 30
 n_actions = 2
+
+temperature = 30.
+learning_rate = 0.005
+n_trajectories = 1000                   # 50000
+length = 50                 # make sure the state-actions are visited enough
 
 beta = 1.0
 
@@ -74,14 +79,12 @@ class Setting:
 
 actor_feature_parameters = actor_features
 
-n_trajectories = 50000
-length = 10                 # make sure the state-actions are visited enough
 gamma = 0.95
 
 setting = None
 
 print("Create dataset %d" % id)
-core = get_random_mdp_core(n_states, n_actions)
+core = get_random_mdp_core(n_states, n_actions, temperature=temperature)
 core._mu_0 = np.array([1.] + [0.] * (n_states - 1))
 mdp = MDP(core)
 mdp_task = RLTask(mdp, mdp.get_initial_state_sampler(), gamma=gamma, max_episode_length=length)
@@ -138,23 +141,23 @@ def experiment(_lambda, setting: Setting, algorithm_name: str):
                                   head_parameters=head_set, body_parameters=body_set,
                                   numerical_position_head=numerical_position_head)
     elif algorithm_name == "offpac":
-        algorithm = OffPAC(policy, setting.behavior_policy, critic_features, actor_feature_parameters, setting.mdp_task.get_descriptor(), n_codes,
+        algorithm = OffPAC(setting.policy, setting.behavior_policy, critic_features, actor_feature_parameters, setting.mdp_task.get_descriptor(), n_codes,
                            trace=0., critic_learning_rate=alpha, gtd_reg=0.1)
     elif algorithm_name == "ace":
-        algorithm = ACE(policy, setting.behavior_policy, critic_features, actor_feature_parameters, setting.mdp_task.get_descriptor(), n_codes,
+        algorithm = ACE(setting.policy, setting.behavior_policy, critic_features, actor_feature_parameters, setting.mdp_task.get_descriptor(), n_codes,
                         critic_trace=0., critic_learning_rate=alpha, gtd_reg=0.1, eta=1.0)
 
     setting.policy.set_parameters(setting.init_parameters)
-    adam = torch.optim.Adam(setting.policy.parameters(), lr=0.001*alpha)     # 0.001 was good
+    adam = torch.optim.Adam(setting.policy.parameters(), lr=learning_rate*alpha)     # 0.001 was good
 
     if algorithm_name == "rc_lambda_head":
-        adam = torch.optim.Adam(head_parameters, lr=0.001*alpha)
-        adam_body = torch.optim.Adam(body_parameters, lr=0.001*alpha)
+        adam = torch.optim.Adam(head_parameters, lr=learning_rate*alpha)
+        adam_body = torch.optim.Adam(body_parameters, lr=learning_rate*alpha)
 
     j_returns = []
 
     start = time.time()
-    pb = ProgressBar(Printable("Policy Gradient"), max_iteration=n_trajectories, prefix='Gamma-RC')
+    pb = ProgressBar(Printable("Policy Gradient"), max_iteration=n_trajectories, prefix=algorithm_name)
     trajectories = setting.dataset.get_trajectory_list()[0]
 
     j_ret = (1 - setting.mdp_task.gamma) * setting.analyzer.get_return()
@@ -170,7 +173,6 @@ def experiment(_lambda, setting: Setting, algorithm_name: str):
 
             if algorithm_name == "rc_lambda_full" or algorithm_name == "rc_lambda_head":
                 algorithm.update_gradient(s, a, s_n, t[0])
-
             if algorithm_name == "offpac":
                 algorithm.update_policy(adam, s, a, delta)
             elif algorithm_name == "ace":
