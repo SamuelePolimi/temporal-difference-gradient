@@ -111,7 +111,7 @@ gamma = 0.95
 setting = None
 
 print("Create dataset %d" % id)
-core = get_random_mdp_core(n_states, n_actions)
+core = get_random_mdp_core(n_states, n_actions, temperature=temperature)
 core._mu_0 = np.array([1.] + [0.]*(n_states-1))
 mdp = MDP(core)
 mdp_task = RLTask(mdp, mdp.get_initial_state_sampler(), gamma=gamma, max_episode_length=length)
