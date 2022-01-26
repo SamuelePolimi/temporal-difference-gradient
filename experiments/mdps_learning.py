@@ -40,6 +40,13 @@ n_actions = 2
 
 beta = 1.0
 
+
+temperature = 30.
+learning_rate = 0.005
+n_trajectories = 5000                   # 50000
+length = 10                 # make sure the state-actions are visited enough
+
+
 id = int(sys.argv[1])
 
 
@@ -97,8 +104,8 @@ class Setting:
 
 actor_feature_parameters = actor_features
 
-n_trajectories = 50000
-length = 10                 # make sure the state-actions are visited enough
+# n_trajectories = 5000   # 50000
+# length = 10                 # make sure the state-actions are visited enough
 gamma = 0.95
 
 setting = None
@@ -195,7 +202,7 @@ def experiment(_lambda, setting: Setting, algorithm_name: str):
     return j_returns
 
 
-for _lambda in [0., 0.25, 0.5, 0.75, 1.]:
+for _lambda in [0., 1.]:    #[0., 0.25, 0.5, 0.75, 1.]:
     print("Testing RC-Lambda %.2f, Setting %d" % (_lambda, setting.id))
     returns = [experiment(_lambda, setting, "rc_lambda") for _ in range(1)]
     np.save("plots/mdps/learning/returns-rcl-%.2f-%d.npy" % (_lambda, setting.id), returns)
