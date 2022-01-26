@@ -38,10 +38,10 @@ The output of this experiment will be found in `/plots/mdp/learning`
 n_states = 30
 n_actions = 2
 
-temperature = 30.
+temperature = 10.
 learning_rate = 0.005
-n_trajectories = 1000                   # 50000
-length = 50                 # make sure the state-actions are visited enough
+n_trajectories = 5000  #50000                   # 50000
+length = 10                 # make sure the state-actions are visited enough
 
 beta = 1.0
 

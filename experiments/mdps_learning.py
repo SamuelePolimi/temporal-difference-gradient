@@ -40,7 +40,7 @@ n_actions = 2
 
 beta = 1.0
 
-
+# Was effective temperature = 30, and without discounting.
 temperature = 10.
 learning_rate = 0.005
 n_trajectories = 50000                   # 50000
