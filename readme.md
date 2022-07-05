@@ -1,8 +1,8 @@
 A Temporal Difference Approach to Policy Gradient Estimation
 ===
 
-*Samuele Tosatto, Andrew Patterson, Martha White, A. Rupam Mahmood*
-__The international Conference of Machine Learning 2022 (Baltimore)__
+__[Samuele Tosatto](https://samueletoatto.com), [Andrew Patterson](https://andnp.github.io/), [Martha White](https://webdocs.cs.ualberta.ca/~whitem/), A. [Rupam Mahmood](https://armahmood.github.io/)__
+*The international Conference of Machine Learning 2022 (Baltimore)*
 
 
 This repository contains the code to run the experiments contained in our submission to AISTATS 2022.
