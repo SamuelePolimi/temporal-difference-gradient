@@ -1,11 +1,11 @@
 A Temporal Difference Approach to Policy Gradient Estimation
 ===
 
-_Anonymous submission_
-
+__[Samuele Tosatto](https://samueletoatto.com), [Andrew Patterson](https://andnp.github.io/), [Martha White](https://webdocs.cs.ualberta.ca/~whitem/), [A. Rupam Mahmood](https://armahmood.github.io/)__
+*The international Conference of Machine Learning 2022 (Baltimore)*
 
 This repository contains the code to run the experiments contained in our submission to ICML 2022.
-The code runs with `python3.6`
+The code runs with `python3.6`.
 
 We suggest creating a conda environment, and to install HeRL with `cd herl` and `pip install -e .`.
 
@@ -62,6 +62,18 @@ cd ../plots/mdps/learning/plot.py
 
 
 Suggestion: to render progress bars, enable `emulate in console` if using `pycharm`.
+
+To cite us:
+```json
+@inproceedings{tosatto_temporal_2022,
+        title = {A {Temporal}-{Difference} {Approach} to {Policy} {Gradient} {Estimation}},
+        author = {Tosatto, Samuele and Patterson, Andrew and White, Martha and Mahmood, Rupam},
+        booktitle = {Proceedings of the 39th {International} {Conference} on {Machine} {Learning}}
+        year = {2022},
+        note = {event-place: Baltimore, Meryland, United States of America},
+        organization = {PMLR}
+}
+```
 
 
 
