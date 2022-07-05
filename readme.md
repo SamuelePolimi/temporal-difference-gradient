@@ -1,4 +1,4 @@
-A Temporal Difference Approach to Policy Gradient Estimation
+A Temporal-Difference Approach to Policy Gradient Estimation
 ===
 
 __[Samuele Tosatto](https://samueletoatto.com), [Andrew Patterson](https://andnp.github.io/), [Martha White](https://webdocs.cs.ualberta.ca/~whitem/), [A. Rupam Mahmood](https://armahmood.github.io/)__
@@ -27,7 +27,7 @@ python3 lambda_lstd_gamma_imani_bias.py
 cd ../plots/imani/lambda_lstd_gamma_bias/plot.py
 ```
 
-- Figure 1c, 1b, (and Figure 5 in Appendix)
+- Figure 1c, 1b, (and Figure 4 in Appendix)
 
 ```shell
 cd experiments
@@ -59,12 +59,12 @@ cd parallel_experiments
 sh mdps_learning.sh
 cd ../plots/mdps/learning/plot.py
 ```
-
+- For Figure 3 in Appendix, refer to [Andrew's Repository](https://github.com/andnp/bootstrap-pg).
 
 Suggestion: to render progress bars, enable `emulate in console` if using `pycharm`.
 
-To cite us:
-```json
+If you find our research interesting, cite us:
+```
 @inproceedings{tosatto_temporal_2022,
         title = {A {Temporal}-{Difference} {Approach} to {Policy} {Gradient} {Estimation}},
         author = {Tosatto, Samuele and Patterson, Andrew and White, Martha and Mahmood, Rupam},
@@ -75,5 +75,5 @@ To cite us:
 }
 ```
 
-
+Thanks!
 
