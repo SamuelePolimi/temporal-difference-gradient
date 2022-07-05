@@ -1,29 +1,67 @@
 A Temporal Difference Approach to Policy Gradient Estimation
 ===
 
-__[Samuele Tosatto](https://samueletoatto.com), [Andrew Patterson](https://andnp.github.io/), [Martha White](https://webdocs.cs.ualberta.ca/~whitem/), [A. Rupam Mahmood](https://armahmood.github.io/)__\\
-*The international Conference of Machine Learning 2022 (Baltimore)*
+_Anonymous submission_
 
 
-This repository contains the code to run the experiments contained in our submission to AISTATS 2022.
-The code runs with `python3.6` and relies on [HeRL](https://github.com/SamuelePolimi/HeRL).
+This repository contains the code to run the experiments contained in our submission to ICML 2022.
+The code runs with `python3.6`
 
-To install `HeRL` simply download it, and run `pip install -e .`.
+We suggest creating a conda environment, and to install HeRL with `cd herl` and `pip install -e .`.
 
 The repository is organized as follow: 
 - `algorithms` contain a simple version of the algorithms listed in the paper
-- `algorithm/closed` contains a closed-form version of the algorithms, that runs with Finite MDPs
 - `environments` contains the environments used in these experiments
 - `experiments` contains the scripts of the experiments
-- `plots` contains tikz figures ready to be inserted in the paper
+- `plots` contains tikz figures (almost) ready to be inserted in the paper, and numpy files used to generate them
+- `readme.md` contains a description of this project.
+
+How to replicate results in the paper
+---
+
+- Figure 1b
+  
+```shell
+cd experiments
+python3 lambda_lstd_gamma_imani_bias.py
+cd ../plots/imani/lambda_lstd_gamma_bias/plot.py
+```
+
+- Figure 1c, 1b, (and Figure 5 in Appendix)
+
+```shell
+cd experiments
+python3 lambda_lstd_gamma_imani_gradient.py
+cd ../plots/imani/lambda_lstd_gamma_gradient/plot.py
+cd ../plots/imani/lambda_lstd_gamma_gradient/scatter.py
+```
+
+- Figure 2a
+  
+```shell
+cd experiments
+python3 lambda_lstd_gamma_imani_last_performance.py
+cd ../plots/imani/lambda_lstd_gamma_last/plot.py
+```
+
+- Figure 2b
+
+```shell
+cd experiments
+python3 lambda_rc_gamma_learning.py
+cd ../plots/imani/lambda_lstd_gamma_learning/plot.py
+```
+
+- Figure 2c and d
+
+```shell
+cd parallel_experiments
+sh mdps_learning.sh
+cd ../plots/mdps/learning/plot.py
+```
+
 
 Suggestion: to render progress bars, enable `emulate in console` if using `pycharm`.
 
-TODO
---
 
-- [x] Write a version of Imani's counterexample with empirical estimation of the gradient
-- [x] Implement semigradient with given critic
-- [x] Implement RCGamma
-- [ ] Test LSTDGamma on ContinuousMountainCar (RBF Features?)
-- [ ] Test TDCGamma on ContinuousMountainCar (RBF Features?)
+

@@ -93,24 +93,3 @@ plt.xlabel("Gradient Updates")
 plt.legend(loc="best")
 tikzplotlib.save("../plots/imani/closed_form_lstd_gamma/counterexample.tex")
 plt.savefig("../plots/imani/closed_form_lstd_gamma/counterexample.pdf")
-
-
-# --------------------------------
-# Plot on console the optimized
-# policy
-# --------------------------------
-
-# def print_policy(policy_params):
-#     policy.set_parameters(policy_params)
-#     for i, s in enumerate(mdp.get_states()):
-#         print("S%d %s" % (i, [policy.get_prob(s, a) for a in mdp.get_actions()]))
-
-
-# print("-"*50)
-# print("Semi-Gradient Final Policy:")
-# # print_policy(param_sg)
-#
-# print("-"*50)
-# print(r"LSTD\Gamma Gradient Final Policy:")
-# # print_policy(param_bg)
-# print("-"*50)

@@ -8,15 +8,7 @@ import numpy as np
 import torch.optim
 import matplotlib.pyplot as plt
 import tikzplotlib
-# plt.rcParams.update({
-#     "text.usetex": True,
-#     "font.family": "sans-serif",
-#     "font.sans-serif": ["Helvetica"]})
 
-
-from herl.classic_envs import get_imani_mdp
-from herl.actor import TabularPolicy
-from herl.rl_interface import RLTask
 from herl.rl_analysis import MDPAnalyzer
 from herl.utils import ProgressBar, Printable, _one_hot
 from herl.solver import RLCollector
