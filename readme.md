@@ -1,6 +1,10 @@
 A Temporal Difference Approach to Policy Gradient Estimation
 ===
 
+*Samuele Tosatto, Andrew Patterson, Martha White, A. Rupam Mahmood*
+__The international Conference of Machine Learning 2022 (Baltimore)__
+
+
 This repository contains the code to run the experiments contained in our submission to AISTATS 2022.
 The code runs with `python3.6` and relies on [HeRL](https://github.com/SamuelePolimi/HeRL).
 
